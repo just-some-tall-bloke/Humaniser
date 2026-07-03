@@ -16,6 +16,9 @@ Single-directory extension, no build step. Load at `chrome://extensions` → Loa
 - Button injection polls 30× every 500ms + MutationObserver. Compose detection uses `[role="dialog"]` / `[role="tabpanel"]` fallback selectors. If Gmail's DOM changes, update these selectors.
 - Typo candidate picks one random word, one random variation. Subsequent clicks pick different remaining candidates.
 - Some typo values contain spaces intentionally (e.g. `"tim e"`, `"mor e"`, `"muc h"`) — these are literal typo strings, not bugs.
+- Some `TYPOS` entries swap homophones/near-words (e.g. `affect`↔`effect`, `desert`↔`dessert`). These produce grammar errors not typos — intentional, but riskier in professional contexts.
+- Case precedence: all-caps check (`orig === orig.toUpperCase()`) runs first, then title-case. `THE` → `TEH`, not `Teh`.
+- Version lives in two places: `manifest.json` and `popup.html` footer. Bump both.
 - No tests, no linter, no CI. No build or packaging scripts. Zip manually with `Compress-Archive`.
 - `popup.js` uses `chrome.storage.sync` — no message passing needed.
 

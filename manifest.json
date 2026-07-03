@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Humaniser",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Insert one common typo into Gmail drafts to make them sound more human",
   "permissions": ["storage"],
   "host_permissions": ["*://mail.google.com/*"],
