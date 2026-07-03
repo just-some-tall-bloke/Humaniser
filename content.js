@@ -22,7 +22,7 @@ function ensureStyles() {
     `[data-hm-btn]:hover{background:#f8f9fa}` +
     `[data-hm-btn].hm-done{border-color:#188038;color:#188038}` +
     `[data-hm-btn].hm-miss{border-color:#d93025;color:#d93025}` +
-    `[data-hm-btn].hm-busy{border-color:#f9ab00;color:#f9ab00}`;
+    `[data-hm-btn].hm-undo{border-color:#f9ab00;color:#f9ab00}`;
   document.head.appendChild(s);
 }
 
@@ -51,7 +51,7 @@ function getComposeDialogs() {
 }
 
 function humaniseDraft(body) {
-  if (enabled === null || !enabled) return false;
+  if (enabled === null || !enabled) return { ok: false };
 
   const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
   const textNodes = [];
@@ -72,12 +72,13 @@ function humaniseDraft(body) {
     });
   });
 
-  if (candidates.length === 0) return false;
+  if (candidates.length === 0) return { ok: false };
 
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   const typo = pick.typos[Math.floor(Math.random() * pick.typos.length)];
   const parts = pick.node.textContent.split(/\b/);
   const orig = parts[pick.partIndex];
+  const originalParts = parts.slice();
 
   if (orig === orig.toUpperCase() && orig.length > 1) {
     parts[pick.partIndex] = typo.toUpperCase();
@@ -99,7 +100,12 @@ function humaniseDraft(body) {
   }
 
   body.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-  return true;
+  return { ok: true, node: pick.node, originalParts: originalParts };
+}
+
+function undoDraft(info) {
+  info.node.textContent = info.originalParts.join("");
+  info.node.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
 }
 
 function makeButton(dialog) {
@@ -110,26 +116,44 @@ function makeButton(dialog) {
   btn.title = "Humaniser: insert one common typo";
   btn.textContent = "✎ Humanise";
 
+  let undoInfo = null;
+  let undoTimeout = null;
+
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
+    if (undoInfo) {
+      undoDraft(undoInfo);
+      undoInfo = null;
+      clearTimeout(undoTimeout);
+      btn.textContent = "✎ Humanise";
+      btn.classList.remove("hm-done", "hm-undo");
+      return;
+    }
     const body = dialog.querySelector(
       '[aria-label="Message Body"][role="textbox"],' +
       '[contenteditable="true"][g_editable="true"]'
     );
     if (!body) return;
-    const applied = humaniseDraft(body);
-    btn.classList.remove("hm-done", "hm-miss");
-    if (applied) {
-      btn.textContent = "✓ Done";
-      btn.classList.add("hm-done");
+    const result = humaniseDraft(body);
+    btn.classList.remove("hm-done", "hm-miss", "hm-undo");
+    if (result.ok) {
+      undoInfo = result;
+      btn.textContent = "↩ Undo";
+      btn.classList.add("hm-undo");
+      clearTimeout(undoTimeout);
+      undoTimeout = setTimeout(() => {
+        undoInfo = null;
+        btn.textContent = "✎ Humanise";
+        btn.classList.remove("hm-undo");
+      }, 8000);
     } else {
       btn.textContent = "✗ No matches";
       btn.classList.add("hm-miss");
+      setTimeout(() => {
+        btn.textContent = "✎ Humanise";
+        btn.classList.remove("hm-miss");
+      }, 1200);
     }
-    setTimeout(() => {
-      btn.textContent = "✎ Humanise";
-      btn.classList.remove("hm-done", "hm-miss");
-    }, 1200);
   });
 
   btn.addEventListener("keydown", (e) => {
